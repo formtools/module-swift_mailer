@@ -9,18 +9,19 @@ function swift_php_ver_send_test_email($settings, $info)
 
   $success = true;
   $message = "The email was successfully sent.";
-	
-  try {
-    if (empty($port))
-      $smtp =& new Swift_Connection_SMTP($smtp_server);
-    else
-      $smtp =& new Swift_Connection_SMTP($smtp_server, $port);
 
-    if ($settings["requires_authentication"] == "yes")
-    {
-      $smtp->setUsername($settings["username"]);
-      $smtp->setPassword($settings["password"]);
-    }
+  try {
+  	$smtp = swift_make_smtp_connection($settings);
+
+		// if required, set the server timeout (Swift Mailer default == 15 seconds)
+		if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
+	    $smtp->setTimeout($settings["server_connection_timeout"]);
+
+	  if ($settings["requires_authentication"] == "yes")
+	  {
+	    $smtp->setUsername($settings["username"]);
+	    $smtp->setPassword($settings["password"]);
+	  }
 
     $swift =& new Swift($smtp);
 
@@ -54,4 +55,47 @@ function swift_php_ver_send_test_email($settings, $info)
   }
 
   return array($success, $message);
+}
+
+
+/**
+ * This makes the connection in the main send- email function (swift_send_email()). It creates the
+ * SMTP connection based on the user settings: the port, encryption type and so on. This is handled
+ * in the separate PHP version folder because it differs between version 4 and 5.
+ */
+function swift_make_smtp_connection($settings)
+{
+  $smtp_server = $settings["smtp_server"];
+  $port        = $settings["port"];
+  $use_encryption = (isset($settings["use_encryption"]) && $settings["use_encryption"] == "yes") ? true : false;
+  $encryption_type = isset($settings["encryption_type"]) ? $settings["encryption_type"] : "";
+
+	if (isset($port) && !empty($port))
+	{
+	  if ($use_encryption)
+		{
+			if ($encryption_type == "SSL")
+			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_TLS);
+			else
+			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_SSL);
+		}
+		else
+      $smtp =& new Swift_Connection_SMTP($smtp_server, $port);
+	}
+  else
+	{
+	  if ($use_encryption)
+		{
+			if ($encryption_type == "SSL")
+			  $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_TLS);
+			else
+			  $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_SSL);
+		}
+		else
+		{
+      $smtp =& new Swift_Connection_SMTP($smtp_server);
+		}
+	}
+
+	return $smtp;
 }
