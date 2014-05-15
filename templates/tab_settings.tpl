@@ -3,9 +3,9 @@
 
   <div class="margin_bottom_large">
     This module enables the <a href="http://swiftmailer.org/" target="_blank">Swift Mailer</a> script to
-    send all Form Tools emails, instead of relying on the default PHP <b>mail()</b> function. This module
-    requires PHP 5.
+    send all Form Tools emails, instead of relying on the default PHP <b>mail()</b> function.
   </div>
+
 
   <form action="{$same_page}" method="post" onsubmit="return rsv.validate(this, rules)">
 

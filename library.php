@@ -48,20 +48,19 @@ function swift_send_test_email($info)
   // find out what version of PHP we're running
   $version = phpversion();
   $version_parts = explode(".", $version);
-
   $main_version = $version_parts[0];
-
+  $current_folder = dirname(__FILE__);
+	
   if ($main_version == "5")
     $php_version_folder = "php5";
+	else if ($main_version == "4")
+    $php_version_folder = "php4";
   else
     return array(false, $L["notify_php_version_not_found_or_invalid"]);
 
-
-  // include the main files
-  $current_folder = dirname(__FILE__);
+  require_once("$current_folder/$php_version_folder/ft_library.php");
   require_once("$current_folder/$php_version_folder/Swift.php");
   require_once("$current_folder/$php_version_folder/Swift/Connection/SMTP.php");
-
 
   $settings = ft_get_module_settings();
 
@@ -82,56 +81,10 @@ function swift_send_test_email($info)
     }
   }
 
-  $smtp_server = $settings["smtp_server"];
-  $port        = $settings["port"];
-
-  $success = true;
-  $message = "The email was successfully sent.";
-
-  try {
-    if (empty($port))
-      $smtp =& new Swift_Connection_SMTP($smtp_server);
-    else
-      $smtp =& new Swift_Connection_SMTP($smtp_server, $port);
-
-    if ($settings["requires_authentication"] == "yes")
-    {
-      $smtp->setUsername($settings["username"]);
-      $smtp->setPassword($settings["password"]);
-    }
-
-    $swift =& new Swift($smtp);
-
-    // now send the appropriate email
-    switch ($info["test_email_format"])
-    {
-      case "text":
-        $email =& new Swift_Message($L["phrase_test_plain_text_email"], "Plain text email successfully sent.");
-        break;
-      case "html":
-        $email =& new Swift_Message($L["phrase_test_html_email"], "<b>HTML</b> email successfully sent.", "text/html");
-        break;
-      case "multipart":
-        $email =& new Swift_Message($L["phrase_test_multipart_email"]);
-        $email->attach(new Swift_Message_Part("Multipart email (text portion)"));
-        $email->attach(new Swift_Message_Part("Multipart email (<b>HTML</b> portion)", "text/html"));
-        break;
-    }
-
-    $swift->send($email, $info["recipient_email"], $info["from_email"]);
-  }
-  catch (Swift_ConnectionException $e)
-  {
-    $success = false;
-    $message = "There was a problem communicating with SMTP: " . $e->getMessage();
-  }
-  catch (Swift_Message_MimeException $e)
-  {
-    $success = false;
-    $message = "There was an unexpected problem building the email:" . $e->getMessage();
-  }
-
-  return array($success, $message);
+	// this passes off the control flow to the swift_php_ver_send_test_email() function
+	// which is defined in both the PHP 5 and PHP 4 ft_library.php file, but only one of 
+	// which was require()'d 
+	return swift_php_ver_send_test_email($settings, $info);
 }
 
 
@@ -150,6 +103,8 @@ function swift_send_email($email_components)
 
   if ($main_version == "5")
     $php_version_folder = "php5";
+  else if ($main_version == "4")
+    $php_version_folder = "php4";
   else
     return array(false, $L["notify_php_version_not_found_or_invalid"]);
 
@@ -157,7 +112,6 @@ function swift_send_email($email_components)
   $current_folder = dirname(__FILE__);
   require_once("$current_folder/$php_version_folder/Swift.php");
   require_once("$current_folder/$php_version_folder/Swift/Connection/SMTP.php");
-
 
   $settings = ft_get_module_settings("", "swift_mailer");
 
@@ -205,10 +159,17 @@ function swift_send_email($email_components)
     $email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
   }
   else if (!empty($email_components["text_content"]))
-    $email =& new Swift_Message($email_components["subject"], $email_components["text_content"]);
+	{
+    $email =& new Swift_Message($email_components["subject"]);
+		$email->attach(new Swift_Message_Part($email_components["text_content"]));
+	}
   else if (!empty($email_components["html_content"]))
-    $email =& new Swift_Message($email_components["subject"], $email_components["html_content"], "text/html");
-
+	{
+    $email =& new Swift_Message($email_components["subject"]);
+		$email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
+	}
+	
+	
   // now compile the recipient list
   $recipients =& new Swift_RecipientList();
 
@@ -252,14 +213,19 @@ function swift_send_email($email_components)
   else if (!empty($email_components["from"]["email"]))
     $from =	new Swift_Address($email_components["from"]["email"]);
 
-
   // finally, if there are any attachments, attach 'em
-  foreach ($email_components["attachments"] as $attachment_info)
-  {
-    $filename      = $attachment_info["filename"];
-    $file_and_path = $attachment_info["file_and_path"];
-    $mimetype      = $attachment_info["mimetype"];
-    $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename, $mimetype));
+	if (isset($email_components["attachments"]))
+	{
+    foreach ($email_components["attachments"] as $attachment_info)
+    {
+      $filename      = $attachment_info["filename"];
+      $file_and_path = $attachment_info["file_and_path"];
+
+			if (!empty($attachment_info["mimetype"]))
+        $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename, $attachment_info["mimetype"]));
+			else
+  			$email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename));
+    }
   }
 
   $swift->send($email, $recipients, $from);
