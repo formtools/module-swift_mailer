@@ -134,12 +134,6 @@ function swift_send_test_email($info)
 }
 
 
-/**
- * Sends an email with the Swift Mailer module.
- *
- * @param array $email_components
- * @return array
- */
 function swift_send_email($email_components)
 {
   // find out what version of PHP we're running
@@ -151,6 +145,7 @@ function swift_send_email($email_components)
     $php_version_folder = "php5";
   else
     return array(false, $L["notify_php_version_not_found_or_invalid"]);
+
 
   // include the main files
   $current_folder = dirname(__FILE__);
@@ -219,34 +214,33 @@ function swift_send_email($email_components)
       $recipients->addTo($to["email"]);
   }
 
-	if (!empty($email_components["cc"]) && is_array($email_components["cc"]))
-	{
-    foreach ($email_components["cc"] as $cc)
-    {
-      if (!empty($cc["name"]) && !empty($cc["email"]))
-        $recipients->addCc($cc["email"], $cc["name"]);
-      else if (!empty($cc["email"]))
-        $recipients->addCc($cc["email"]);
-    }
+  foreach ($email_components["cc"] as $cc)
+  {
+    if (!empty($cc["name"]) && !empty($cc["email"]))
+      $recipients->addCc($cc["email"], $cc["name"]);
+    else if (!empty($cc["email"]))
+      $recipients->addCc($cc["email"]);
   }
 
-	if (!empty($email_components["bcc"]) && is_array($email_components["bcc"]))
-	{
-    foreach ($email_components["bcc"] as $bcc)
-    {
-      if (!empty($bcc["name"]) && !empty($bcc["email"]))
-        $recipients->addBcc($bcc["email"], $bcc["name"]);
-      else if (!empty($bcc["email"]))
-        $recipients->addBcc($bcc["email"]);
-    }
+  foreach ($email_components["bcc"] as $bcc)
+  {
+    if (!empty($bcc["name"]) && !empty($bcc["email"]))
+      $recipients->addBcc($bcc["email"], $bcc["name"]);
+    else if (!empty($bcc["email"]))
+      $recipients->addBcc($bcc["email"]);
   }
 
   if (!empty($email_components["from"]["name"]) && !empty($email_components["from"]["email"]))
     $from =	new Swift_Address($email_components["from"]["email"], $email_components["from"]["name"]);
-  else if (!empty($email_components["from"]["email"]))
+  else if (!empty($bcc["email"]))
     $from =	new Swift_Address($email_components["from"]["email"]);
 
-  $swift->send($email, $recipients, $from);
+  if (!empty($email_components["from"]["name"]) && !empty($email_components["from"]["email"]))
+    $from =	new Swift_Address($email_components["from"]["email"], $email_components["from"]["name"]);
+  else if (!empty($bcc["email"]))
+    $from =	new Swift_Address($email_components["from"]["email"]);
+
+  $swift->send($email, $recipients, $info["from_email"]);
 
 
   return array($success, $message);

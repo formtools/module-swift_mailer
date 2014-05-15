@@ -2,13 +2,16 @@
 
 /**
  * Module file: Swift Mailer
+ *
+ * This module lets the user enter their server's SMTP settings for Swift Mailer, letting them
+ * override the default mail() functionality used by the default script.
  */
 
 $MODULE["author"]          = "Encore Web Studios";
 $MODULE["author_email"]    = "formtools@encorewebstudios.com";
-$MODULE["author_link"]     = "http://modules.formtools.org";
-$MODULE["version"]         = "1.0.0-beta-20090112";
-$MODULE["date"]            = "2009-01-12";
+$MODULE["author_link"]     = "http://www.encorewebstudios.com";
+$MODULE["version"]         = "1.0.0-beta-20081229";
+$MODULE["date"]            = "2008-12-29";
 $MODULE["origin_language"] = "en_us";
 $MODULE["supports_ft_versions"] = "2.0.0";
 
