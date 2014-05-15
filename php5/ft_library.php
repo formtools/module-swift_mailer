@@ -11,17 +11,17 @@ function swift_php_ver_send_test_email($settings, $info)
   $message = "The email was successfully sent.";
 
   try {
-  	$smtp = swift_make_smtp_connection($settings);
+    $smtp = swift_make_smtp_connection($settings);
 
-		// if required, set the server timeout (Swift Mailer default == 15 seconds)
-		if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
-	    $smtp->setTimeout($settings["server_connection_timeout"]);
+    // if required, set the server timeout (Swift Mailer default == 15 seconds)
+    if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
+      $smtp->setTimeout($settings["server_connection_timeout"]);
 
-	  if ($settings["requires_authentication"] == "yes")
-	  {
-	    $smtp->setUsername($settings["username"]);
-	    $smtp->setPassword($settings["password"]);
-	  }
+    if ($settings["requires_authentication"] == "yes")
+    {
+      $smtp->setUsername($settings["username"]);
+      $smtp->setPassword($settings["password"]);
+    }
 
     $swift =& new Swift($smtp);
 
@@ -70,32 +70,32 @@ function swift_make_smtp_connection($settings)
   $use_encryption = (isset($settings["use_encryption"]) && $settings["use_encryption"] == "yes") ? true : false;
   $encryption_type = isset($settings["encryption_type"]) ? $settings["encryption_type"] : "";
 
-	if (isset($port) && !empty($port))
-	{
-	  if ($use_encryption)
-		{
-			if ($encryption_type == "SSL")
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_TLS);
-			else
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_SSL);
-		}
-		else
+  if (isset($port) && !empty($port))
+  {
+    if ($use_encryption)
+    {
+      if ($encryption_type == "SSL")
+        $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_SSL);
+      else
+        $smtp =& new Swift_Connection_SMTP($smtp_server, $port, Swift_Connection_SMTP::ENC_TLS);
+    }
+    else
       $smtp =& new Swift_Connection_SMTP($smtp_server, $port);
-	}
+  }
   else
-	{
-	  if ($use_encryption)
-		{
-			if ($encryption_type == "SSL")
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_TLS);
-			else
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_SSL);
-		}
-		else
-		{
+  {
+    if ($use_encryption)
+    {
+      if ($encryption_type == "SSL")
+        $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_SSL);
+      else
+        $smtp =& new Swift_Connection_SMTP($smtp_server, Swift_Connection_SMTP::PORT_SECURE, Swift_Connection_SMTP::ENC_TLS);
+    }
+    else
+    {
       $smtp =& new Swift_Connection_SMTP($smtp_server);
-		}
-	}
+    }
+  }
 
-	return $smtp;
+  return $smtp;
 }

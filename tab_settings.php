@@ -7,7 +7,7 @@ $settings = ft_get_module_settings();
 
 $remember_advanced_settings = false;
 if (isset($_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"]))
-  $remember_advanced_settings = $_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"]; 
+  $remember_advanced_settings = $_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"];
 
 $page_vars = array();
 $page_vars["page"] = $page;
@@ -24,7 +24,7 @@ rules.push("if:requires_authentication=yes,required,authentication_procedure,Ple
 rules.push("if:use_encryption=yes,required,encryption_type,Please select the encryption type.");
 
 var page_ns = {};
-page_ns 
+page_ns
 page_ns.toggle_enabled_fields = function(is_checked)
 {
   $('smtp_server').disabled = !is_checked;
@@ -70,7 +70,7 @@ page_ns.toggle_advanced_settings = function()
     parameters: { action: "remember_advanced_settings", remember_advanced_settings: is_visible },
     method: 'post'
   });
-	
+
 	return false;
 }
 

@@ -17,48 +17,48 @@ function swift_update_settings($info)
     "requires_authentication" => (isset($info["requires_authentication"]) ? "yes" : "no"),
     "use_encryption"          => (isset($info["use_encryption"]) ? "yes" : "no")
       );
-		
+
   // Enable module
-	if (isset($info["swiftmailer_enabled"]))
-	{
+  if (isset($info["swiftmailer_enabled"]))
+  {
     $settings["smtp_server"] = $info["smtp_server"];
-  	if (isset($info["port"]))		
+    if (isset($info["port"]))
       $settings["port"] = $info["port"];
   }
-	
+
   // Use authentication
-	if (isset($info["requires_authentication"]))
-	{
+  if (isset($info["requires_authentication"]))
+  {
     if (isset($info["username"]))
       $settings["username"] = $info["username"];
     if (isset($info["password"]))
       $settings["password"] = $info["password"];
     if (isset($info["authentication_procedure"]))
       $settings["authentication_procedure"] = $info["authentication_procedure"];
-	}
+  }
 
   // Use encryption
-	if (isset($info["use_encryption"]))
-	{
+  if (isset($info["use_encryption"]))
+  {
     if (isset($info["encryption_type"]))
       $settings["encryption_type"] = $info["encryption_type"];
-	}
+  }
 
-	// Advanced
+  // Advanced
   if ($_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"])
-	{
+  {
     if (isset($info["server_connection_timeout"]))
       $settings["server_connection_timeout"] = $info["server_connection_timeout"];
     if (isset($info["charset"]))
       $settings["charset"] = $info["charset"];
-  
+
     // Anti-flooding
     $settings["use_anti_flooding"] =  isset($info["use_anti_flooding"]) ? "yes" : "no";
-		
+
     if (isset($info["anti_flooding_email_batch_size"]))
       $settings["anti_flooding_email_batch_size"] = $info["anti_flooding_email_batch_size"];
     if (isset($info["anti_flooding_email_batch_wait_time"]))
-      $settings["anti_flooding_email_batch_wait_time"] = $info["anti_flooding_email_batch_wait_time"];		
+      $settings["anti_flooding_email_batch_wait_time"] = $info["anti_flooding_email_batch_wait_time"];
   }
 
   ft_set_module_settings($settings);
@@ -152,12 +152,12 @@ function swift_send_email($email_components)
   require_once("$current_folder/$php_version_folder/Swift/Connection/SMTP.php");
 
   $settings = ft_get_module_settings("", "swift_mailer");
-	$use_anti_flooding = (isset($settings["use_anti_flooding"]) && $settings["use_anti_flooding"] == "yes"); 
+  $use_anti_flooding = (isset($settings["use_anti_flooding"]) && $settings["use_anti_flooding"] == "yes");
 
-	// if the user has requested anti-flooding, include the plugin
-	if ($use_anti_flooding)
-	{
-		require_once("$current_folder/$php_version_folder/Swift/Plugin/AntiFlood.php");
+  // if the user has requested anti-flooding, include the plugin
+  if ($use_anti_flooding)
+  {
+    require_once("$current_folder/$php_version_folder/Swift/Plugin/AntiFlood.php");
   }
 
   // if we're requiring authentication, include the appropriate authenticator file
@@ -180,11 +180,11 @@ function swift_send_email($email_components)
   $success = true;
   $message = "The email was successfully sent.";
 
-	// make the SMTP connection (this is PHP-version specific)
-	$smtp = swift_make_smtp_connection($settings);
+  // make the SMTP connection (this is PHP-version specific)
+  $smtp = swift_make_smtp_connection($settings);
 
-	// if required, set the server timeout (Swift Mailer default == 15 seconds)  
-	if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
+  // if required, set the server timeout (Swift Mailer default == 15 seconds)
+  if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
     $smtp->setTimeout($settings["server_connection_timeout"]);
 
   if ($settings["requires_authentication"] == "yes")
@@ -195,14 +195,14 @@ function swift_send_email($email_components)
 
   $swift =& new Swift($smtp);
 
-	// apply the anti-flood settings
-	if ($use_anti_flooding)
-	{
-	  $anti_flooding_email_batch_size      = $settings["anti_flooding_email_batch_size"];
-		$anti_flooding_email_batch_wait_time = $settings["anti_flooding_email_batch_wait_time"];
-		
-		if (is_numeric($anti_flooding_email_batch_size) && is_numeric($anti_flooding_email_batch_wait_time))
-  	  $swift->attachPlugin(new Swift_Plugin_AntiFlood($anti_flooding_email_batch_size, $anti_flooding_email_batch_wait_time), "anti-flood");
+  // apply the anti-flood settings
+  if ($use_anti_flooding)
+  {
+    $anti_flooding_email_batch_size      = $settings["anti_flooding_email_batch_size"];
+    $anti_flooding_email_batch_wait_time = $settings["anti_flooding_email_batch_wait_time"];
+
+    if (is_numeric($anti_flooding_email_batch_size) && is_numeric($anti_flooding_email_batch_wait_time))
+      $swift->attachPlugin(new Swift_Plugin_AntiFlood($anti_flooding_email_batch_size, $anti_flooding_email_batch_wait_time), "anti-flood");
   }
 
   // now send the appropriate email
@@ -226,14 +226,14 @@ function swift_send_email($email_components)
   // add the return path, if it's defined
   if (isset($email_components["email_id"]))
   {
-	  $email_id = $email_components["email_id"];
-	  $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
-	  $extended_field_info = mysql_fetch_assoc($query);
-	  if (isset($extended_field_info["return_path"]) && !empty($extended_field_info["return_path"]))
-	    $email->setReturnPath($extended_field_info["return_path"]);
+    $email_id = $email_components["email_id"];
+    $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
+    $extended_field_info = mysql_fetch_assoc($query);
+    if (isset($extended_field_info["return_path"]) && !empty($extended_field_info["return_path"]))
+      $email->setReturnPath($extended_field_info["return_path"]);
   }
 
-	if (isset($settings["charset"]) && !empty($settings["charset"]))
+  if (isset($settings["charset"]) && !empty($settings["charset"]))
     $email->setCharset($settings["charset"]);
 
 
@@ -296,7 +296,7 @@ function swift_send_email($email_components)
   }
 
   if ($use_anti_flooding)
-  	$swift->batchSend($email, $recipients, $from);
+    $swift->batchSend($email, $recipients, $from);
   else
     $swift->send($email, $recipients, $from);
 
@@ -406,7 +406,7 @@ function swift_mailer__install($module_id)
   $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('use_anti_flooding', '', 'swift_mailer')";
   $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('anti_flooding_email_batch_size', '', 'swift_mailer')";
   $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('anti_flooding_email_batch_wait_time', '', 'swift_mailer')";
-	
+
   $queries[] = "CREATE TABLE {$g_table_prefix}module_swift_mailer_email_template_fields (
     email_template_id MEDIUMINT NOT NULL,
     return_path VARCHAR(255) NOT NULL,
@@ -506,5 +506,5 @@ function swift_mailer__upgrade($old_version, $new_version)
     {
       $result = mysql_query($query);
     }
-  }	
+  }
 }

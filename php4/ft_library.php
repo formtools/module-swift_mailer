@@ -9,7 +9,7 @@ function swift_php_ver_send_test_email($settings, $info)
   $smtp_server = $settings["smtp_server"];
   $port        = $settings["port"];
 
-	// default return values (optimistic, huh?)
+  // default return values (optimistic, huh?)
   $success = true;
   $message = "The email was successfully sent.";
 
@@ -27,15 +27,15 @@ function swift_php_ver_send_test_email($settings, $info)
   }
 
   // if required, set the server timeout (Swift Mailer default == 15 seconds)
-	if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
+  if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"]))
     $smtp->setTimeout($settings["server_connection_timeout"]);
 
   $swift =& new Swift($smtp);
 
-	if (!empty($g_swift_error))
-	{
-	  return array(false, "There was a problem sending the test email: " . $g_swift_error);
-	}
+  if (!empty($g_swift_error))
+  {
+    return array(false, "There was a problem sending the test email: " . $g_swift_error);
+  }
 
   // now send the appropriate email
   switch ($info["test_email_format"])
@@ -55,12 +55,12 @@ function swift_php_ver_send_test_email($settings, $info)
 
   $swift->send($email, $info["recipient_email"], $info["from_email"]);
 
-	if (!empty($g_swift_error))
-	{
-	  return array(false, "There was a problem sending the test email: " . $g_swift_error);
-	}
+  if (!empty($g_swift_error))
+  {
+    return array(false, "There was a problem sending the test email: " . $g_swift_error);
+  }
 
-	restore_error_handler();
+  restore_error_handler();
 
   return array($success, $message);
 }
@@ -78,34 +78,34 @@ function swift_make_smtp_connection($settings)
   $use_encryption = (isset($settings["use_encryption"]) && $settings["use_encryption"] == "yes") ? true : false;
   $encryption_type = isset($settings["encryption_type"]) ? $settings["encryption_type"] : "";
 
-	if (isset($port) && !empty($port))
-	{
-	  if ($use_encryption)
-		{
-			if ($encryption_type == "SSL")
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, SWIFT_SMTP_ENC_TLS);
-			else
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, $port, SWIFT_SMTP_ENC_SSL);
-		}
-		else
+  if (isset($port) && !empty($port))
+  {
+    if ($use_encryption)
+    {
+      if ($encryption_type == "SSL")
+        $smtp =& new Swift_Connection_SMTP($smtp_server, $port, SWIFT_SMTP_ENC_SSL);
+      else
+        $smtp =& new Swift_Connection_SMTP($smtp_server, $port, SWIFT_SMTP_ENC_TLS);
+    }
+    else
       $smtp =& new Swift_Connection_SMTP($smtp_server, $port);
-	}
+  }
   else
-	{
-	  if ($use_encryption)
-		{
-			if ($encryption_type == "SSL")
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, SWIFT_SMTP_PORT_SECURE, SWIFT_SMTP_ENC_TLS);
-			else
-			  $smtp =& new Swift_Connection_SMTP($smtp_server, SWIFT_SMTP_PORT_SECURE, SWIFT_SMTP_ENC_SSL);
-		}
-		else
-		{
+  {
+    if ($use_encryption)
+    {
+      if ($encryption_type == "SSL")
+        $smtp =& new Swift_Connection_SMTP($smtp_server, SWIFT_SMTP_PORT_SECURE, SWIFT_SMTP_ENC_SSL);
+      else
+        $smtp =& new Swift_Connection_SMTP($smtp_server, SWIFT_SMTP_PORT_SECURE, SWIFT_SMTP_ENC_TLS);
+    }
+    else
+    {
       $smtp =& new Swift_Connection_SMTP($smtp_server);
-		}
-	}
+    }
+  }
 
-	return $smtp;
+  return $smtp;
 }
 
 
@@ -114,22 +114,22 @@ function swift_error_handler($errno, $errstr, $errfile, $errline)
   global $g_swift_error;
 
   switch ($errno)
-	{
+  {
     case E_USER_ERROR:
-  		$g_swift_error = "[$errno] $errstr<Br />
+      $g_swift_error = "[$errno] $errstr<Br />
                         Fatal error on line $errline in file $errfile";
       break;
 /*
     case E_USER_WARNING:
-  		$g_swift_error = "<b>WARNING</b> [$errno] $errstr";
+      $g_swift_error = "<b>WARNING</b> [$errno] $errstr";
       break;
 
     case E_USER_NOTICE:
-  		$g_swift_error = "<b>NOTICE</b> [$errno] $errstr";
+      $g_swift_error = "<b>NOTICE</b> [$errno] $errstr";
       break;
 
     default:
-  		$g_swift_error = "[$errno] $errstr";
+      $g_swift_error = "[$errno] $errstr";
       break;
 */
   }
