@@ -68,3 +68,7 @@ $L["validation_no_username"] = "Please enter the username.";
 $L["validation_no_password"] = "Please enter the password.";
 $L["validation_no_authentication_procedure"] = "Please indicate the authentication procedure.";
 $L["validation_no_encryption_type"] = "Please select the encryption type.";
+
+$L["validation_invalid_recipient_email"] = "Please enter a valid recipient email address.";
+$L["validation_invalid_sender_email"] = "Please enter a valid sender email address.";
+

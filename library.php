@@ -411,7 +411,7 @@ function swift_mailer__install($module_id)
     email_template_id MEDIUMINT NOT NULL,
     return_path VARCHAR(255) NOT NULL,
     PRIMARY KEY (email_template_id)
-    ) TYPE=MyISAM";
+    )";
 
   foreach ($queries as $query)
   {
@@ -473,7 +473,7 @@ function swift_mailer__upgrade($old_version, $new_version)
       email_template_id MEDIUMINT NOT NULL,
       return_path VARCHAR(255) NOT NULL,
       PRIMARY KEY (email_template_id)
-      ) TYPE=MyISAM");
+      )");
 
     ft_register_hook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
     ft_register_hook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");

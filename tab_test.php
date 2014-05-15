@@ -16,10 +16,12 @@ $page_vars["recipient_email"] = $recipient_email;
 $page_vars["from_email"] = $from_email;
 $page_vars["sm_settings"] = $settings;
 $page_vars["php_version"] = phpversion();
-$page_vars["js"] =<<<EOF
+$page_vars["head_js"] =<<<EOF
 var rules = [];
-rules.push("required,email_recipient,{$L["validation_no_recipient_email"]});
-rules.push("required,email_from,{$L["validation_no_sender_email"]}");
+rules.push("required,recipient_email,{$L["validation_no_recipient_email"]}");
+rules.push("valid_email,recipient_email,{$L["validation_invalid_recipient_email"]}");
+rules.push("required,from_email,{$L["validation_no_sender_email"]}");
+rules.push("valid_email,from_email,{$L["validation_invalid_sender_email"]}");
 EOF;
 
 ft_display_module_page("templates/index.tpl", $page_vars);
