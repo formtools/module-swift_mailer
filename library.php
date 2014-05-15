@@ -172,11 +172,14 @@ function swift_send_email($email_components)
   }
 
   // add the return path, if it's defined
-  $email_id = $email_components["email_id"];
-  $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
-  $extended_field_info = mysql_fetch_assoc($query);
-  if (isset($extended_field_info["return_path"]) && !empty($extended_field_info["return_path"]))
-    $email->setReturnPath($extended_field_info["return_path"]);
+  if (isset($email_components["email_id"]))
+  {
+	  $email_id = $email_components["email_id"];
+	  $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
+	  $extended_field_info = mysql_fetch_assoc($query);
+	  if (isset($extended_field_info["return_path"]) && !empty($extended_field_info["return_path"]))
+	    $email->setReturnPath($extended_field_info["return_path"]);
+  }
 
   $email->setCharset("utf-8");
 
