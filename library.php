@@ -50,10 +50,10 @@ function swift_send_test_email($info)
   $version_parts = explode(".", $version);
   $main_version = $version_parts[0];
   $current_folder = dirname(__FILE__);
-	
+
   if ($main_version == "5")
     $php_version_folder = "php5";
-	else if ($main_version == "4")
+  else if ($main_version == "4")
     $php_version_folder = "php4";
   else
     return array(false, $L["notify_php_version_not_found_or_invalid"]);
@@ -81,10 +81,10 @@ function swift_send_test_email($info)
     }
   }
 
-	// this passes off the control flow to the swift_php_ver_send_test_email() function
-	// which is defined in both the PHP 5 and PHP 4 ft_library.php file, but only one of 
-	// which was require()'d 
-	return swift_php_ver_send_test_email($settings, $info);
+  // this passes off the control flow to the swift_php_ver_send_test_email() function
+  // which is defined in both the PHP 5 and PHP 4 ft_library.php file, but only one of
+  // which was require()'d
+  return swift_php_ver_send_test_email($settings, $info);
 }
 
 
@@ -96,6 +96,8 @@ function swift_send_test_email($info)
  */
 function swift_send_email($email_components)
 {
+  global $g_table_prefix;
+
   // find out what version of PHP we're running
   $version = phpversion();
   $version_parts = explode(".", $version);
@@ -159,17 +161,25 @@ function swift_send_email($email_components)
     $email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
   }
   else if (!empty($email_components["text_content"]))
-	{
+  {
     $email =& new Swift_Message($email_components["subject"]);
-		$email->attach(new Swift_Message_Part($email_components["text_content"]));
-	}
+    $email->attach(new Swift_Message_Part($email_components["text_content"]));
+  }
   else if (!empty($email_components["html_content"]))
-	{
+  {
     $email =& new Swift_Message($email_components["subject"]);
-		$email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
-	}
-	
-	
+    $email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
+  }
+
+  // add the return path, if it's defined
+  $email_id = $email_components["email_id"];
+  $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
+  $extended_field_info = mysql_fetch_assoc($query);
+  if (isset($extended_field_info["return_path"]) && !empty($extended_field_info["return_path"]))
+    $email->setReturnPath($extended_field_info["return_path"]);
+
+  $email->setCharset("utf-8");
+
   // now compile the recipient list
   $recipients =& new Swift_RecipientList();
 
@@ -214,17 +224,17 @@ function swift_send_email($email_components)
     $from =	new Swift_Address($email_components["from"]["email"]);
 
   // finally, if there are any attachments, attach 'em
-	if (isset($email_components["attachments"]))
-	{
+  if (isset($email_components["attachments"]))
+  {
     foreach ($email_components["attachments"] as $attachment_info)
     {
       $filename      = $attachment_info["filename"];
       $file_and_path = $attachment_info["file_and_path"];
 
-			if (!empty($attachment_info["mimetype"]))
+      if (!empty($attachment_info["mimetype"]))
         $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename, $attachment_info["mimetype"]));
-			else
-  			$email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename));
+      else
+        $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename));
     }
   }
 
@@ -235,20 +245,125 @@ function swift_send_email($email_components)
 
 
 /**
+ * Displays the extra fields on the Edit Email template: tab 2. Currently, this is only set to
+ */
+function swift_display_extra_fields_tab2($location, $info)
+{
+  global $L;
+
+  $return_path = htmlspecialchars($info["template_info"]["swift_mailer_settings"]["return_path"]);
+
+  echo "<tr>
+          <td valign=\"top\" class=\"red\"> </td>
+          <td valign=\"top\">Undeliverable Email Recipient</td>
+          <td valign=\"top\">
+            <input type=\"text\" name=\"swift_mailer_return_path\" style=\"width: 300px\" value=\"$return_path\" />
+          </td>
+        </tr>";
+}
+
+
+/**
+ * This is called by the ft_create_blank_email_template function.
+ *
+ * @param array $info
+ */
+function swift_map_email_template_field($info)
+{
+  global $g_table_prefix;
+
+  $email_template_id = $info["email_id"];
+  mysql_query("INSERT INTO {$g_table_prefix}module_swift_mailer_email_template_fields (email_template_id, return_path) VALUES ($email_template_id, '')");
+}
+
+
+/**
+ * This is called by the ft_create_blank_email_template function.
+ *
+ * @param array $info
+ */
+function swift_delete_email_template_field($info)
+{
+  global $g_table_prefix;
+
+  $email_template_id = $info["email_id"];
+  mysql_query("DELETE FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_template_id");
+}
+
+
+/**
+ * This extends the ft_get_email_template function, adding the additional Swift Mailer return_path variable within a "swift_mailer_settings"
+ * key.
+ */
+function swift_get_email_template_append_extra_fields($info)
+{
+  global $g_table_prefix;
+
+  $email_id = $info["email_template"]["email_id"];
+  $query = mysql_query("SELECT * FROM {$g_table_prefix}module_swift_mailer_email_template_fields WHERE email_template_id = $email_id");
+  $result = mysql_fetch_assoc($query);
+
+  $info["email_template"]["swift_mailer_settings"]["return_path"] = $result["return_path"];
+
+  return $info;
+}
+
+
+function swift_update_email_template_append_extra_fields($info)
+{
+  global $g_table_prefix;
+
+  $email_template_id        = $info["email_id"];
+  $swift_mailer_return_path = $info["info"]["swift_mailer_return_path"];
+
+  mysql_query("
+    UPDATE {$g_table_prefix}module_swift_mailer_email_template_fields
+    SET    return_path = '$swift_mailer_return_path'
+    WHERE  email_template_id = $email_template_id
+      ");
+}
+
+
+/**
  * The Export Manager installation function. This is automatically called by Form Tools on installation.
  */
 function swift_mailer__install($module_id)
 {
   global $g_table_prefix;
 
-  $queries[] = "
-    INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module)
-    VALUES (
-      ";
+  $queries = array();
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('swiftmailer_enabled', 'no', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('smtp_server', '', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('port', '', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('requires_authentication', 'no', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('username', '', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('password', '', 'swift_mailer')";
+  $queries[] = "INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module) VALUES ('authentication_procedure', '', 'swift_mailer')";
+
+  $queries[] = "CREATE TABLE {$g_table_prefix}module_swift_mailer_email_template_fields (
+    email_template_id MEDIUMINT NOT NULL,
+    return_path VARCHAR(255) NOT NULL,
+    PRIMARY KEY (email_template_id)
+    ) TYPE=InnoDB";
 
   foreach ($queries as $query)
   {
     $result = mysql_query($query);
+  }
+
+  ft_register_hook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
+  ft_register_hook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");
+  ft_register_hook("code", "swift_mailer", "end", "ft_delete_email_template", "swift_delete_email_template_field");
+  ft_register_hook("code", "swift_mailer", "end", "ft_update_email_template", "swift_update_email_template_append_extra_fields");
+  ft_register_hook("code", "swift_mailer", "end", "ft_get_email_template", "swift_get_email_template_append_extra_fields");
+
+  // now map all the email template IDs for the extra return path field
+  $email_template_ids = array();
+  $query = mysql_query("SELECT email_id FROM {$g_table_prefix}email_templates");
+  while ($row = mysql_fetch_assoc($query))
+  {
+    $email_template_id = $row["email_id"];
+     mysql_query("INSERT INTO {$g_table_prefix}module_swift_mailer_email_template_fields (email_template_id, return_path) VALUE ($email_template_id, '')");
   }
 
   return array(true, "");
@@ -257,11 +372,55 @@ function swift_mailer__install($module_id)
 
 /**
  * The Swift Mailer uninstall script. This is called by Form Tools when the user explicitly chooses to
- * uninstall the module.
+ * uninstall the module. The hooks are automatically removed by the core script; settings needs to be explicitly
+ * removed, since it's possible some modules would want to leave settings there in case they re-install it
+ * later.
  */
 function swift_mailer__uninstall($module_id)
 {
   global $g_table_prefix;
 
+  mysql_query("DROP TABLE {$g_table_prefix}module_swift_mailer_email_template_fields");
+  mysql_query("DELETE FROM {$g_table_prefix}settings WHERE module = 'swift_mailer'");
+
   return array(true, "");
+}
+
+
+/**
+ * The module update function.
+ *
+ * @param string $old_version
+ * @param string $new_version
+ */
+function swift_mailer__upgrade($old_version, $new_version)
+{
+  global $g_table_prefix;
+
+  $old_version_info = ft_get_version_info($old_version);
+  $new_version_info = ft_get_version_info($new_version);
+
+  if ($old_version_info["release_date"] < 20090409)
+  {
+    @mysql_query("CREATE TABLE {$g_table_prefix}module_swift_mailer_email_template_fields (
+      email_template_id MEDIUMINT NOT NULL,
+      return_path VARCHAR(255) NOT NULL,
+      PRIMARY KEY (email_template_id)
+      ) TYPE=InnoDB");
+
+    ft_register_hook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
+    ft_register_hook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");
+    ft_register_hook("code", "swift_mailer", "end", "ft_delete_email_template", "swift_delete_email_template_field");
+    ft_register_hook("code", "swift_mailer", "end", "ft_update_email_template", "swift_update_email_template_append_extra_fields");
+    ft_register_hook("code", "swift_mailer", "end", "ft_get_email_template", "swift_get_email_template_append_extra_fields");
+
+    // now map all the email template IDs for the extra return path field
+    $email_template_ids = array();
+    $query = mysql_query("SELECT email_id FROM {$g_table_prefix}email_templates");
+    while ($row = mysql_fetch_assoc($query))
+    {
+      $email_template_id = $row["email_id"];
+       mysql_query("INSERT INTO {$g_table_prefix}module_swift_mailer_email_template_fields (email_template_id, return_path) VALUE ($email_template_id, '')");
+    }
+  }
 }

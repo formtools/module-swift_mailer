@@ -27,3 +27,5 @@ $L["phrase_test_multipart_email"] = "Swift Mailer: Multi-part Email Test";
 
 $L["notify_settings_updated"] = "The settings have been updated.";
 $L["notify_php_version_not_found_or_invalid"] = "This module only supports PHP 4 and 5. We couldn't determine your PHP version using phpversion().";
+
+$L["text_help"] = "Please see our <a href=\"http://modules.formtools.org/swift_mailer/documentation.php\" target=\"_blank\">online help documentation</a> for information on how to use this module.";

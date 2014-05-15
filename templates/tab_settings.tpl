@@ -44,20 +44,25 @@
 	  </tr>
 	  <tr>
 	    <td class="medium_grey" width="140">Username</td>
-	    <td><input type="text" name="username" id="username" style="width:200px" value="{$sm_settings.username|escape}" /></td>
+	    <td><input type="text" name="username" id="username" style="width:200px" value="{$sm_settings.username|escape}" 
+	      {if $sm_settings.requires_authentication == "no"}disabled{/if} /></td>
 	  </tr>
 	  <tr>
 	    <td class="medium_grey">Password</td>
-	    <td><input type="text" name="password" id="password" style="width:200px" value="{$sm_settings.password|escape}" /></td>
+	    <td><input type="text" name="password" id="password" style="width:200px" value="{$sm_settings.password|escape}" 
+	      {if $sm_settings.requires_authentication == "no"}disabled{/if} /></td>
 	  </tr>
 	  <tr>
 	    <td class="medium_grey">Authentication procedure</td>
 	    <td>
-	      <input type="radio" name="authentication_procedure" id="ap1" value="LOGIN" {if $sm_settings.authentication_procedure == "LOGIN"}checked{/if} />
+	      <input type="radio" name="authentication_procedure" id="ap1" value="LOGIN" {if $sm_settings.authentication_procedure == "LOGIN"}checked{/if}
+	        {if $sm_settings.requires_authentication == "no"}disabled{/if} />
 	        <label for="ap1">LOGIN</label>
-	      <input type="radio" name="authentication_procedure" id="ap2" value="PLAIN" {if $sm_settings.authentication_procedure == "PLAIN"}checked{/if} />
+	      <input type="radio" name="authentication_procedure" id="ap2" value="PLAIN" {if $sm_settings.authentication_procedure == "PLAIN"}checked{/if} 
+	        {if $sm_settings.requires_authentication == "no"}disabled{/if} />
 	        <label for="ap2">PLAIN</label>
-	      <input type="radio" name="authentication_procedure" id="ap3" value="CRAMMD5" {if $sm_settings.authentication_procedure == "CRAMMD5"}checked{/if} />
+	      <input type="radio" name="authentication_procedure" id="ap3" value="CRAMMD5" {if $sm_settings.authentication_procedure == "CRAMMD5"}checked{/if} 
+	        {if $sm_settings.requires_authentication == "no"}disabled{/if} />
 	        <label for="ap3">CRAM-MD5</label>
 	    </td>
 	  </tr>
