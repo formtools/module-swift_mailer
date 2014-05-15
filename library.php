@@ -45,7 +45,7 @@ function swift_update_settings($info)
   }
 
   // Advanced
-  if ($_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"])
+  if (isset($_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"]) && $_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"])
   {
     if (isset($info["server_connection_timeout"]))
       $settings["server_connection_timeout"] = $info["server_connection_timeout"];
@@ -315,7 +315,7 @@ function swift_display_extra_fields_tab2($location, $info)
 
   echo "<tr>
           <td valign=\"top\" class=\"red\"> </td>
-          <td valign=\"top\">Undeliverable Email Recipient</td>
+          <td valign=\"top\">{$L["phrase_undeliverable_email_recipient"]}</td>
           <td valign=\"top\">
             <input type=\"text\" name=\"swift_mailer_return_path\" style=\"width: 300px\" value=\"$return_path\" />
           </td>
@@ -411,7 +411,7 @@ function swift_mailer__install($module_id)
     email_template_id MEDIUMINT NOT NULL,
     return_path VARCHAR(255) NOT NULL,
     PRIMARY KEY (email_template_id)
-    ) TYPE=InnoDB";
+    ) TYPE=MyISAM";
 
   foreach ($queries as $query)
   {
@@ -473,7 +473,7 @@ function swift_mailer__upgrade($old_version, $new_version)
       email_template_id MEDIUMINT NOT NULL,
       return_path VARCHAR(255) NOT NULL,
       PRIMARY KEY (email_template_id)
-      ) TYPE=InnoDB");
+      ) TYPE=MyISAM");
 
     ft_register_hook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
     ft_register_hook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");
@@ -506,5 +506,10 @@ function swift_mailer__upgrade($old_version, $new_version)
     {
       $result = mysql_query($query);
     }
+  }
+
+  if ($old_version_info["release_date"] < 20100911)
+  {
+    @mysql_query("ALTER TABLE {$g_table_prefix}module_swift_mailer_email_template_fields TYPE=MyISAM");
   }
 }

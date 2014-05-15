@@ -2,6 +2,14 @@
 
 $g_swift_error = "";
 
+
+/**
+ * Sends the test email using Swift for PHP4 installations.
+ *
+ * @param array $settings
+ * @param array $info
+ * @return array
+ */
 function swift_php_ver_send_test_email($settings, $info)
 {
   global $L, $g_swift_error;
@@ -9,9 +17,8 @@ function swift_php_ver_send_test_email($settings, $info)
   $smtp_server = $settings["smtp_server"];
   $port        = $settings["port"];
 
-  // default return values (optimistic, huh?)
   $success = true;
-  $message = "The email was successfully sent.";
+  $message = $L["notify_email_sent"];
 
   $old_error_handler = set_error_handler("swift_error_handler");
 
@@ -32,33 +39,33 @@ function swift_php_ver_send_test_email($settings, $info)
 
   $swift =& new Swift($smtp);
 
-  if (!empty($g_swift_error))
-  {
-    return array(false, "There was a problem sending the test email: " . $g_swift_error);
-  }
+	if (!empty($g_swift_error))
+	{
+	  return array(false, $L["notify_problem_sending_test_email"] . " " . $g_swift_error);
+	}
 
   // now send the appropriate email
   switch ($info["test_email_format"])
   {
     case "text":
-      $email =& new Swift_Message($L["phrase_test_plain_text_email"], "Plain text email successfully sent.");
+      $email =& new Swift_Message($L["phrase_test_plain_text_email"], $L["notify_plain_text_email_sent"]);
       break;
     case "html":
-      $email =& new Swift_Message($L["phrase_test_html_email"], "<b>HTML</b> email successfully sent.", "text/html");
+      $email =& new Swift_Message($L["phrase_test_html_email"], $L["notify_html_email_sent"], "text/html");
       break;
     case "multipart":
       $email =& new Swift_Message($L["phrase_test_multipart_email"]);
-      $email->attach(new Swift_Message_Part("Multipart email (text portion)"));
-      $email->attach(new Swift_Message_Part("Multipart email (<b>HTML</b> portion)", "text/html"));
+      $email->attach(new Swift_Message_Part($L["phrase_multipart_email_text"]));
+      $email->attach(new Swift_Message_Part($L["phrase_multipart_email_html"], "text/html"));
       break;
   }
 
   $swift->send($email, $info["recipient_email"], $info["from_email"]);
 
-  if (!empty($g_swift_error))
-  {
-    return array(false, "There was a problem sending the test email: " . $g_swift_error);
-  }
+	if (!empty($g_swift_error))
+	{
+	  return array(false, $L["notify_problem_sending_test_email"] . " " . $g_swift_error);
+	}
 
   restore_error_handler();
 

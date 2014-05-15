@@ -9,6 +9,6 @@ $action  = $request["action"];
 switch ($action)
 {
   case "remember_advanced_settings":
-	  ft_load_module_field("swift_mailer", "remember_advanced_settings", "remember_advanced_settings"); 
+    ft_load_module_field("swift_mailer", "remember_advanced_settings", "remember_advanced_settings");
     break;
-}	
+}

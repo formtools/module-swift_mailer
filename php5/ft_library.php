@@ -1,5 +1,13 @@
 <?php
 
+
+/**
+ * Sends the test email using Swift for PHP5 installations.
+ *
+ * @param array $settings
+ * @param array $info
+ * @return array
+ */
 function swift_php_ver_send_test_email($settings, $info)
 {
   global $L;
@@ -8,7 +16,7 @@ function swift_php_ver_send_test_email($settings, $info)
   $port        = $settings["port"];
 
   $success = true;
-  $message = "The email was successfully sent.";
+  $message = $L["notify_email_sent"];
 
   try {
     $smtp = swift_make_smtp_connection($settings);
@@ -29,15 +37,15 @@ function swift_php_ver_send_test_email($settings, $info)
     switch ($info["test_email_format"])
     {
       case "text":
-        $email =& new Swift_Message($L["phrase_test_plain_text_email"], "Plain text email successfully sent.");
+        $email =& new Swift_Message($L["phrase_test_plain_text_email"], $L["notify_plain_text_email_sent"]);
         break;
       case "html":
-        $email =& new Swift_Message($L["phrase_test_html_email"], "<b>HTML</b> email successfully sent.", "text/html");
+        $email =& new Swift_Message($L["phrase_test_html_email"], $L["notify_html_email_sent"], "text/html");
         break;
       case "multipart":
         $email =& new Swift_Message($L["phrase_test_multipart_email"]);
-        $email->attach(new Swift_Message_Part("Multipart email (text portion)"));
-        $email->attach(new Swift_Message_Part("Multipart email (<b>HTML</b> portion)", "text/html"));
+        $email->attach(new Swift_Message_Part($L["phrase_multipart_email_text"]));
+        $email->attach(new Swift_Message_Part($L["phrase_multipart_email_html"], "text/html"));
         break;
     }
 
@@ -46,12 +54,12 @@ function swift_php_ver_send_test_email($settings, $info)
   catch (Swift_ConnectionException $e)
   {
     $success = false;
-    $message = "There was a problem communicating with SMTP: " . $e->getMessage();
+    $message = $L["notify_smtp_problem"] . " " . $e->getMessage();
   }
   catch (Swift_Message_MimeException $e)
   {
     $success = false;
-    $message = "There was an unexpected problem building the email:" . $e->getMessage();
+    $message = $L["notify_problem_building_email"] . " " . $e->getMessage();
   }
 
   return array($success, $message);
