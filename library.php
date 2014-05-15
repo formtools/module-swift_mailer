@@ -34,7 +34,8 @@ function swift_update_settings($info)
 
 /**
  * Called on the test tab. It sends one of the three test emails: plain text, HTML and multi-part
- * using the SMTP settings configured on the settings tab.
+ * using the SMTP settings configured on the settings tab. This is NOT for the test email done on the
+ * email templates "Test" tab; it uses the main swift_send_email function for that.
  *
  * @param array $info
  * @return array [0] T/F<br />
@@ -219,8 +220,8 @@ function swift_send_email($email_components)
       $recipients->addTo($to["email"]);
   }
 
-	if (!empty($email_components["cc"]) && is_array($email_components["cc"]))
-	{
+  if (!empty($email_components["cc"]) && is_array($email_components["cc"]))
+  {
     foreach ($email_components["cc"] as $cc)
     {
       if (!empty($cc["name"]) && !empty($cc["email"]))
@@ -230,8 +231,8 @@ function swift_send_email($email_components)
     }
   }
 
-	if (!empty($email_components["bcc"]) && is_array($email_components["bcc"]))
-	{
+  if (!empty($email_components["bcc"]) && is_array($email_components["bcc"]))
+  {
     foreach ($email_components["bcc"] as $bcc)
     {
       if (!empty($bcc["name"]) && !empty($bcc["email"]))
@@ -241,13 +242,27 @@ function swift_send_email($email_components)
     }
   }
 
+  if (!empty($email_components["reply_to"]["name"]) && !empty($email_components["reply_to"]["email"]))
+    $email->setReplyTo($email_components["reply_to"]["name"] . "<" . $email_components["reply_to"]["email"] . ">");
+  else if (!empty($email_components["reply_to"]["email"]))
+    $email->setReplyTo($email_components["reply_to"]["email"]);
+
   if (!empty($email_components["from"]["name"]) && !empty($email_components["from"]["email"]))
     $from =	new Swift_Address($email_components["from"]["email"], $email_components["from"]["name"]);
   else if (!empty($email_components["from"]["email"]))
     $from =	new Swift_Address($email_components["from"]["email"]);
 
-  $swift->send($email, $recipients, $from);
 
+  // finally, if there are any attachments, attach 'em
+  foreach ($email_components["attachments"] as $attachment_info)
+  {
+    $filename      = $attachment_info["filename"];
+    $file_and_path = $attachment_info["file_and_path"];
+    $mimetype      = $attachment_info["mimetype"];
+    $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename, $mimetype));
+  }
+
+  $swift->send($email, $recipients, $from);
 
   return array($success, $message);
 }
@@ -261,13 +276,13 @@ function swift_mailer__install($module_id)
   global $g_table_prefix;
 
   $queries[] = "
-		INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module)
-		VALUES (
-		  ";
+    INSERT INTO {$g_table_prefix}settings (setting_name, setting_value, module)
+    VALUES (
+      ";
 
   foreach ($queries as $query)
   {
-  	$result = mysql_query($query);
+    $result = mysql_query($query);
   }
 
   return array(true, "");
@@ -280,7 +295,7 @@ function swift_mailer__install($module_id)
  */
 function swift_mailer__uninstall($module_id)
 {
-	global $g_table_prefix;
+  global $g_table_prefix;
 
-	return array(true, "");
+  return array(true, "");
 }
