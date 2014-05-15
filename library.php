@@ -240,7 +240,7 @@ function swift_send_email($email_components)
   else if (!empty($bcc["email"]))
     $from =	new Swift_Address($email_components["from"]["email"]);
 
-  $swift->send($email, $recipients, $info["from_email"]);
+  $swift->send($email, $recipients, $from);
 
 
   return array($success, $message);
