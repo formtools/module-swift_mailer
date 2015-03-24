@@ -1,0 +1,1 @@
+## module-swift_mailer
