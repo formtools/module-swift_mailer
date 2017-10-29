@@ -8,7 +8,7 @@ use FormTools\Module as FormToolsModule;
 use FormTools\Modules;
 use FormTools\Sessions;
 use PDO, PDOException;
-use Swift_Mailer, Swift_Message, Swift_SmtpTransport, Swift_TransportException;
+use Swift_Mailer, Swift_Message, Swift_SmtpTransport, Swift_TransportException, Swift_Attachment, Swift_Plugins_AntiFloodPlugin;
 
 
 class Module extends FormToolsModule
@@ -55,7 +55,6 @@ class Module extends FormToolsModule
         "AES-256-CFB1",
         "AES-256-CFB8"
     );
-    private static $swift_error;
 
     public function install ($module_id)
     {
@@ -159,9 +158,9 @@ class Module extends FormToolsModule
         $L = $this->getLangStrings();
 
         $settings = array(
-            "swiftmailer_enabled"     => (isset($info["swiftmailer_enabled"]) ? "yes" : "no"),
-            "requires_authentication" => (isset($info["requires_authentication"]) ? "yes" : "no"),
-            "use_encryption"          => (isset($info["use_encryption"]) ? "yes" : "no")
+            "swiftmailer_enabled"     => isset($info["swiftmailer_enabled"]) ? "yes" : "no",
+            "requires_authentication" => isset($info["requires_authentication"]) ? "yes" : "no",
+            "use_encryption"          => isset($info["use_encryption"]) ? "yes" : "no"
         );
 
         // Enable module
@@ -231,6 +230,147 @@ class Module extends FormToolsModule
     public function sendTestEmail($info)
     {
         $L = $this->getLangStrings();
+
+        // create a message
+        $message = new Swift_Message();
+        $message->setFrom($info["from_email"]);
+        $message->setTo($info["recipient_email"]);
+
+        // now send the appropriate email
+        switch ($info["test_email_format"]) {
+            case "text":
+                $message->setSubject($L["phrase_plain_text_email"]);
+                $message->setBody($L["notify_plain_text_email_sent"]);
+                break;
+            case "html":
+                $message->setSubject($L["phrase_html_email"]);
+                $message->setBody($L["notify_html_email_sent"], "text/html");
+                break;
+            case "multipart":
+                $message->setSubject(htmlspecialchars_decode($L["phrase_multipart_email"]));
+                $message->setBody($L["notify_plain_text_email_sent"]);
+                $message->addPart($L["notify_plain_text_email_sent"], "text/html");
+                break;
+        }
+
+        try {
+            $mailer = $this->getMailer();
+            if (!$mailer->send($message, $errors)) {
+                return array(false, $L["notify_problem_sending_test_email"] . " " . implode(", ", $errors));
+            }
+        } catch (Swift_TransportException $e) {
+            return array(false, $L["notify_problem_sending_test_email"] . " " . $e->getMessage());
+        }
+
+        return array(true, $L["notify_email_sent"]);
+    }
+
+
+    /**
+     * Sends an email with the Swift Mailer module.
+     *
+     * @param array $email_components
+     * @return array
+     */
+    public function sendEmail($email_components)
+    {
+        $db = Core::$db;
+        $L = $this->getLangStrings();
+
+        $settings = $this->getSettings();
+
+        $mailer = $this->getMailer();
+
+        // apply the optional anti-flood settings
+        $use_anti_flooding = (isset($settings["use_anti_flooding"]) && $settings["use_anti_flooding"] == "yes");
+        if ($use_anti_flooding) {
+            $batch_size      = $settings["anti_flooding_email_batch_size"];
+            $batch_wait_time = $settings["anti_flooding_email_batch_wait_time"];
+
+            if (is_numeric($batch_size) && is_numeric($batch_wait_time)) {
+                $mailer->registerPlugin(new Swift_Plugins_AntiFloodPlugin($batch_size, $batch_wait_time));
+            }
+        }
+
+        $message = new Swift_Message();
+
+        if (!empty($email_components["text_content"]) && !empty($email_components["html_content"])) {
+            $message->setSubject($email_components["subject"]);
+            $message->setBody($email_components["text_content"]);
+            $message->addPart($email_components["html_content"], "text/html");
+        } else if (!empty($email_components["text_content"])) {
+            $message->setBody($email_components["text_content"]);
+        } else if (!empty($email_components["html_content"])) {
+            $message->setBody($email_components["html_content"], "text/html");
+        }
+
+        // add the return path if it's defined
+        if (isset($email_components["email_id"])) {
+            $db->query("
+                SELECT return_path
+                FROM {PREFIX}module_swift_mailer_email_template_fields
+                WHERE email_template_id = :email_template_id
+            ");
+            $db->bind("email_template_id", $email_components["email_id"]);
+            $db->execute();
+
+            $return_path = $db->fetch(PDO::FETCH_COLUMN);
+            if (isset($return_path) && !empty($return_path)) {
+                $message->setReturnPath($return_path);
+            }
+        }
+
+        if (isset($settings["charset"]) && !empty($settings["charset"])) {
+            $message->setCharset($settings["charset"]);
+        }
+
+        $message->setTo(self::getEmailList($email_components["to"]));
+
+        $cc = self::getEmailList($email_components["cc"]);
+        if (!empty($cc)) {
+            $message->setCc($cc);
+        }
+
+        $bcc = self::getEmailList($email_components["bcc"]);
+        if (!empty($bcc)) {
+            $message->setBcc($bcc);
+        }
+
+        $reply_to = $email_components["reply_to"];
+        if (!empty($reply_to["name"]) && !empty($reply_to["email"])) {
+            $message->setReplyTo($reply_to["email"], $reply_to["name"]);
+        } else if (!empty($reply_to["email"])) {
+            $message->setReplyTo($reply_to["email"]);
+        }
+
+        $from = $email_components["from"];
+        if (!empty($from["name"]) && !empty($from["email"])) {
+            $message->setFrom($from["email"], $from["name"]);
+        } else if (!empty($email_components["from"]["email"])) {
+            $message->setFrom($from["email"]);
+        }
+
+        // finally, if there are any attachments, attach 'em
+        if (isset($email_components["attachments"])) {
+            foreach ($email_components["attachments"] as $attachment_info) {
+                $message->attach(Swift_Attachment::fromPath($attachment_info["file_and_path"]));
+            }
+        }
+
+        try {
+            if (!$mailer->send($message, $errors)) {
+                return array(false, $L["notify_email_error"] . " " . implode(", ", $errors));
+            }
+        } catch (Swift_TransportException $e) {
+            return array(false, $L["notify_email_error"] . " " . $e->getMessage());
+        }
+
+        return array(true, $L["notify_email_sent"]);
+    }
+
+
+    public function getMailer()
+    {
         $settings = $this->getSettings();
 
         if (empty($settings["port"])) {
@@ -254,225 +394,8 @@ class Module extends FormToolsModule
             $transport->setTimeout($settings["server_connection_timeout"]);
         }
 
-        // Create the Mailer using your created Transport
-        $mailer = new Swift_Mailer($transport);
-
-        // Create a message
-        $message = new Swift_Message($L["phrase_test_multipart_email"]);
-        $message->setFrom($info["from_email"]);
-        $message->setTo($info["recipient_email"]);
-
-        // now send the appropriate email
-        switch ($info["test_email_format"]) {
-            case "text":
-                $message->setSubject($L["phrase_plain_text_email"]);
-                $message->setBody($L["notify_plain_text_email_sent"]);
-                break;
-            case "html":
-                $message->setSubject($L["phrase_html_email"]);
-                $message->setBody($L["notify_html_email_sent"], "text/html");
-                break;
-            case "multipart":
-                $message->setSubject(htmlspecialchars_decode($L["phrase_multipart_email"]));
-                $message->setBody($L["notify_plain_text_email_sent"]);
-                $message->addPart($L["notify_plain_text_email_sent"], "text/html");
-                break;
-        }
-
-        try {
-            if (!$mailer->send($message, $errors)) {
-                return array(false, $L["notify_problem_sending_test_email"] . " " . implode(", ", $errors));
-            }
-        } catch (Swift_TransportException $e) {
-            return array(false, $L["notify_problem_sending_test_email"] . " " . $e->getMessage());
-        }
-
-        return array(true, $L["notify_email_sent"]);
+        return new Swift_Mailer($transport);
     }
-
-
-    /**
-     * Sends an email with the Swift Mailer module.
-     *
-     * @param array $email_components
-     * @return array
-     */
-//    public function sendEmail($email_components)
-//    {
-//        $db = Core::$db;
-//        $L = $this->getLangStrings();
-//        $settings = $this->getSettings();
-//
-//        // find out what version of PHP we're running
-//        $version = phpversion();
-//        $version_parts = explode(".", $version);
-//        $main_version = $version_parts[0];
-//
-//        if ($main_version == "5") {
-//            $php_version_folder = "php5";
-//        } else if ($main_version == "4") {
-//            $php_version_folder = "php4";
-//        } else {
-//            return array(false, $L["notify_php_version_not_found_or_invalid"]);
-//        }
-//
-//        // include the main files
-//        $current_folder = dirname(__FILE__);
-//        require_once("$current_folder/$php_version_folder/ft_library.php");
-//        require_once("$current_folder/$php_version_folder/Swift.php");
-//        require_once("$current_folder/$php_version_folder/Swift/Connection/SMTP.php");
-//
-//        $use_anti_flooding = (isset($settings["use_anti_flooding"]) && $settings["use_anti_flooding"] == "yes");
-//
-//        // if the user has requested anti-flooding, include the plugin
-//        if ($use_anti_flooding) {
-//            require_once("$current_folder/$php_version_folder/Swift/Plugin/AntiFlood.php");
-//        }
-//
-//        // if we're requiring authentication, include the appropriate authenticator file
-//        if ($settings["requires_authentication"] == "yes") {
-//            switch ($settings["authentication_procedure"]) {
-//                case "LOGIN":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/LOGIN.php");
-//                    break;
-//                case "PLAIN":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/PLAIN.php");
-//                    break;
-//                case "CRAMMD5":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/CRAMMD5.php");
-//                    break;
-//            }
-//        }
-//
-//        $success = true;
-//        $message = "The email was successfully sent.";
-//
-//        $smtp = swift_make_smtp_connection($settings);
-//
-//        // if required, set the server timeout (Swift Mailer default == 15 seconds)
-//        if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"])) {
-//            $smtp->setTimeout($settings["server_connection_timeout"]);
-//        }
-//
-//        if ($settings["requires_authentication"] == "yes") {
-//            $smtp->setUsername($settings["username"]);
-//            $smtp->setPassword($settings["password"]);
-//        }
-
-//        $swift =& new Swift($smtp);
-//
-//        // apply the anti-flood settings
-//        if ($use_anti_flooding) {
-//            $anti_flooding_email_batch_size      = $settings["anti_flooding_email_batch_size"];
-//            $anti_flooding_email_batch_wait_time = $settings["anti_flooding_email_batch_wait_time"];
-//
-//            if (is_numeric($anti_flooding_email_batch_size) && is_numeric($anti_flooding_email_batch_wait_time)) {
-//                $swift->attachPlugin(new Swift_Plugin_AntiFlood($anti_flooding_email_batch_size,
-//                $anti_flooding_email_batch_wait_time), "anti-flood");
-//            }
-//        }
-//
-//        // now send the appropriate email
-//        if (!empty($email_components["text_content"]) && !empty($email_components["html_content"])) {
-//            $email =& new Swift_Message($email_components["subject"]);
-//            $email->attach(new Swift_Message_Part($email_components["text_content"]));
-//            $email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
-//
-//        } else if (!empty($email_components["text_content"])) {
-//            $email =& new Swift_Message($email_components["subject"]);
-//            $email->attach(new Swift_Message_Part($email_components["text_content"]));
-//
-//        } else if (!empty($email_components["html_content"])) {
-//            $email =& new Swift_Message($email_components["subject"]);
-//            $email->attach(new Swift_Message_Part($email_components["html_content"], "text/html"));
-//        }
-//
-//        // add the return path if it's defined
-//        if (isset($email_components["email_id"])) {
-//            $db->query("
-//                SELECT return_path
-//                FROM {PREFIX}module_swift_mailer_email_template_fields
-//                WHERE email_template_id = :email_template_id
-//            ");
-//            $db->bind("email_template_id", $email_components["email_id"]);
-//            $db->execute();
-//
-//            $return_path = $db->fetch(PDO::FETCH_COLUMN);
-//            if (isset($return_path) && !empty($return_path)) {
-//                $email->setReturnPath($return_path);
-//            }
-//        }
-//
-//        if (isset($settings["charset"]) && !empty($settings["charset"])) {
-//            $email->setCharset($settings["charset"]);
-//        }
-//
-//        // now compile the recipient list
-//        $recipients =& new Swift_RecipientList();
-//
-//        foreach ($email_components["to"] as $to) {
-//            if (!empty($to["name"]) && !empty($to["email"])) {
-//                $recipients->addTo($to["email"], $to["name"]);
-//            } else if (!empty($to["email"])) {
-//                $recipients->addTo($to["email"]);
-//            }
-//        }
-//
-//        if (!empty($email_components["cc"]) && is_array($email_components["cc"])) {
-//            foreach ($email_components["cc"] as $cc) {
-//                if (!empty($cc["name"]) && !empty($cc["email"])) {
-//                    $recipients->addCc($cc["email"], $cc["name"]);
-//                } else if (!empty($cc["email"])) {
-//                    $recipients->addCc($cc["email"]);
-//                }
-//            }
-//        }
-//
-//        if (!empty($email_components["bcc"]) && is_array($email_components["bcc"])) {
-//            foreach ($email_components["bcc"] as $bcc) {
-//                if (!empty($bcc["name"]) && !empty($bcc["email"])) {
-//                    $recipients->addBcc($bcc["email"], $bcc["name"]);
-//                } else if (!empty($bcc["email"])) {
-//                    $recipients->addBcc($bcc["email"]);
-//                }
-//            }
-//        }
-//
-//        if (!empty($email_components["reply_to"]["name"]) && !empty($email_components["reply_to"]["email"])) {
-//            $email->setReplyTo($email_components["reply_to"]["name"] . "<" . $email_components["reply_to"]["email"] . ">");
-//        } else if (!empty($email_components["reply_to"]["email"])) {
-//            $email->setReplyTo($email_components["reply_to"]["email"]);
-//        }
-//
-//        if (!empty($email_components["from"]["name"]) && !empty($email_components["from"]["email"])) {
-//            $from = new Swift_Address($email_components["from"]["email"], $email_components["from"]["name"]);
-//        } else if (!empty($email_components["from"]["email"])) {
-//            $from = new Swift_Address($email_components["from"]["email"]);
-//        }
-//
-//        // finally, if there are any attachments, attach 'em
-//        if (isset($email_components["attachments"])) {
-//            foreach ($email_components["attachments"] as $attachment_info) {
-//                $filename      = $attachment_info["filename"];
-//                $file_and_path = $attachment_info["file_and_path"];
-//
-//                if (!empty($attachment_info["mimetype"])) {
-//                    $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename, $attachment_info["mimetype"]));
-//                } else {
-//                    $email->attach(new Swift_Message_Attachment(new Swift_File($file_and_path), $filename));
-//                }
-//            }
-//        }
-//
-//        if ($use_anti_flooding) {
-//            $swift->batchSend($email, $recipients, $from);
-//        } else {
-//            $swift->send($email, $recipients, $from);
-//        }
-//
-//        return array($success, $message);
-//    }
-
 
     /**
      * Displays the extra fields on the Edit Email template: tab 2
@@ -568,15 +491,18 @@ END;
         $db->execute();
     }
 
-    private static function encode ($str) {
+    private static function encode ($str)
+    {
         return @openssl_encrypt($str, self::getCipher(), "km");
     }
 
-    private static function decode ($str) {
+    private static function decode ($str)
+    {
         return @openssl_decrypt($str, self::getCipher(), "km");
     }
 
-    private static function getCipher () {
+    private static function getCipher ()
+    {
         $ciphers = openssl_get_cipher_methods();
         $selected_cipher = "";
         foreach (self::$ciphers as $curr_cipher) {
@@ -591,5 +517,26 @@ END;
         }
 
         return $selected_cipher;
+    }
+
+
+    private static function getEmailList ($list)
+    {
+        $emails = array();
+
+        foreach ($list as $item) {
+            if (empty($item["email"])) {
+                continue;
+            }
+            $email = $item["email"];
+
+            if (empty($item["name"])) {
+                $emails[] = array($email);
+            } else {
+                $emails[] = array($email => $item["name"]);
+            }
+        }
+
+        return $emails;
     }
 }

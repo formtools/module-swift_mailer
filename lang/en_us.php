@@ -50,6 +50,7 @@ $L["phrase_multipart_email_html"] = "Multipart email (<b>HTML</b> portion)";
 $L["notify_settings_updated"] = "The settings have been updated.";
 $L["notify_php_version_not_found_or_invalid"] = "This module only supports PHP 4 and 5. We couldn't determine your PHP version using phpversion().";
 $L["notify_email_sent"] = "The email was successfully sent.";
+$L["notify_email_error"] = "There was a problem sending the email.";
 $L["notify_problem_sending_test_email"] = "There was a problem sending the test email:";
 $L["notify_plain_text_email_sent"] = "Plain text email successfully sent.";
 $L["notify_html_email_sent"] = "<b>HTML</b> email successfully sent.";
