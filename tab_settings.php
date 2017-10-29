@@ -3,8 +3,10 @@
 use FormTools\General;
 use FormTools\Sessions;
 
+$success = true;
+$message = "";
 if (isset($_POST["update"])) {
-    list ($g_success, $g_message) = $module->updateSettings($_POST);
+    list ($success, $message) = $module->updateSettings($_POST);
 }
 
 $settings = $module->getSettings();
@@ -15,6 +17,8 @@ if (Sessions::exists("swift_mailer.remember_advanced_settings")) {
 }
 
 $page_vars = array(
+    "g_success" => $success,
+    "g_message" => $message,
     "page" => $page,
     "tabs" => $tabs,
     "remember_advanced_settings" => $remember_advanced_settings,
@@ -22,11 +26,17 @@ $page_vars = array(
     "text_settings_desc" => General::evalSmartyString($L["text_settings_desc"], array("php_version"=> phpversion()))
 );
 
+// if a password hasn't already been entered, include the
+$pwd_validation = "";
+if (empty($settings["password"])) {
+    $pwd_validation = "rules.push(\"if:requires_authentication=yes,required,password,{$L["validation_no_password"]}\");";
+}
+
 $page_vars["head_js"] =<<< END
 var rules = [];
 rules.push("if:swiftmailer_enabled=yes,required,smtp_server,{$L["validation_no_smtp_server"]}");
 rules.push("if:requires_authentication=yes,required,username,{$L["validation_no_username"]}");
-rules.push("if:requires_authentication=yes,required,password,{$L["validation_no_password"]}");
+$pwd_validation
 rules.push("if:requires_authentication=yes,required,authentication_procedure,{$L["validation_no_authentication_procedure"]}");
 rules.push("if:use_encryption=yes,required,encryption_type,{$L["validation_no_encryption_type"]}");
 

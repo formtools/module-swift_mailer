@@ -46,9 +46,14 @@
     </tr>
     <tr>
       <td> </td>
-      <td class="medium_grey">{$LANG.word_password}</td>
-      <td><input type="password" name="password" id="password" style="width:200px" value="{$sm_settings.password|escape}"
-        {if $sm_settings.requires_authentication == "no"}disabled{/if} /></td>
+      <td class="medium_grey" valign="top">{$LANG.word_password}</td>
+      <td>
+          {if $sm_settings.password}
+              <input type="hidden" id="has_password" value="1" />
+              <div>********</div>
+          {/if}
+          <input type="password" name="password" id="password" style="width:200px" value=""
+            {if $sm_settings.requires_authentication == "no"}disabled{/if} /></td>
     </tr>
     <tr>
       <td> </td>

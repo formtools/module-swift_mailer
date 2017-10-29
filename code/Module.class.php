@@ -6,7 +6,9 @@ use FormTools\Core;
 use FormTools\Hooks;
 use FormTools\Module as FormToolsModule;
 use FormTools\Modules;
+use FormTools\Sessions;
 use PDO, PDOException;
+use Swift_Mailer, Swift_Message, Swift_SmtpTransport, Swift_TransportException;
 
 
 class Module extends FormToolsModule
@@ -17,7 +19,7 @@ class Module extends FormToolsModule
     protected $authorEmail = "ben.keen@gmail.com";
     protected $authorLink = "https://formtools.org";
     protected $version = "2.0.0";
-    protected $date = "2017-10-24";
+    protected $date = "2017-10-28";
     protected $originLanguage = "en_us";
     protected $jsFiles = array(
         "{MODULEROOT}/scripts/field_options.js"
@@ -27,6 +29,33 @@ class Module extends FormToolsModule
         "module_name" => array("index.php", false),
         "word_help"   => array("help.php", true)
     );
+
+    private static $ciphers = array(
+        "AES-128-CBC",
+        "AES-128-CBC-HMAC-SHA1",
+        "AES-128-CBC-HMAC-SHA256",
+        "AES-128-CFB",
+        "AES-128-CFB1",
+        "AES-128-CFB8",
+        "AES-128-CTR",
+        "AES-128-ECB",
+        "AES-128-OFB",
+        "AES-128-XTS",
+        "AES-192-CBC",
+        "AES-192-CFB",
+        "AES-192-CFB1",
+        "AES-192-CFB8",
+        "AES-192-CTR",
+        "AES-192-ECB",
+        "AES-192-OFB",
+        "AES-256-CBC",
+        "AES-256-CBC-HMAC-SHA1",
+        "AES-256-CBC-HMAC-SHA256",
+        "AES-256-CFB",
+        "AES-256-CFB1",
+        "AES-256-CFB8"
+    );
+    private static $swift_error;
 
     public function install ($module_id)
     {
@@ -101,7 +130,6 @@ class Module extends FormToolsModule
     }
 
 
-
     /**
      * The Swift Mailer uninstall script. This is called by Form Tools when the user explicitly chooses to
      * uninstall the module. The hooks are automatically removed by the core script; settings needs to be explicitly
@@ -150,7 +178,7 @@ class Module extends FormToolsModule
                 $settings["username"] = $info["username"];
             }
             if (isset($info["password"])) {
-                $settings["password"] = $info["password"];
+                $settings["password"] = self::encode($info["password"]);
             }
             if (isset($info["authentication_procedure"])) {
                 $settings["authentication_procedure"] = $info["authentication_procedure"];
@@ -165,7 +193,8 @@ class Module extends FormToolsModule
         }
 
         // Advanced
-        if (isset($_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"]) && $_SESSION["ft"]["swift_mailer"]["remember_advanced_settings"]) {
+        $remember = Sessions::get("swift_mailer.remember_advanced_settings");
+        if (Sessions::exists("swift_mailer.remember_advanced_settings") && !empty($remember)) {
             if (isset($info["server_connection_timeout"])) {
                 $settings["server_connection_timeout"] = $info["server_connection_timeout"];
             }
@@ -199,50 +228,67 @@ class Module extends FormToolsModule
      * @return array [0] T/F<br />
      *               [1] Success / error message
      */
-//    public function sendTestEmail($info)
-//    {
-//        $L = $this->getLangStrings();
-//        $settings = $this->getSettings();
-//
-//        // find out what version of PHP we're running
-//        $version = phpversion();
-//        $version_parts = explode(".", $version);
-//        $main_version = $version_parts[0];
-//        $current_folder = dirname(__FILE__);
-//
-//        if ($main_version == "5") {
-//            $php_version_folder = "php5";
-//        } else if ($main_version == "4") {
-//            $php_version_folder = "php4";
-//        } else {
-//            return array(false, $L["notify_php_version_not_found_or_invalid"]);
-//        }
-//
-//        require_once("$current_folder/$php_version_folder/ft_library.php");
-//        require_once("$current_folder/$php_version_folder/Swift.php");
-//        require_once("$current_folder/$php_version_folder/Swift/Connection/SMTP.php");
-//
-//
-//        // if we're requiring authentication, include the appropriate authenticator file
-//        if ($settings["requires_authentication"] == "yes") {
-//            switch ($settings["authentication_procedure"]) {
-//                case "LOGIN":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/LOGIN.php");
-//                    break;
-//                case "PLAIN":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/PLAIN.php");
-//                    break;
-//                case "CRAMMD5":
-//                    require_once("$current_folder/$php_version_folder/Swift/Authenticator/CRAMMD5.php");
-//                    break;
-//            }
-//        }
-//
-//        // this passes off the control flow to the swift_php_ver_send_test_email() function
-//        // which is defined in both the PHP 5 and PHP 4 ft_library.php file, but only one of
-//        // which was require()'d
-//        return $this->sendTestEmail($settings, $info);
-//    }
+    public function sendTestEmail($info)
+    {
+        $L = $this->getLangStrings();
+        $settings = $this->getSettings();
+
+        if (empty($settings["port"])) {
+            $transport = new Swift_SmtpTransport($settings["smtp_server"]);
+        } else {
+            $transport = new Swift_SmtpTransport($settings["smtp_server"], $settings["port"]);
+        }
+
+        if ($settings["requires_authentication"] == "yes") {
+            $transport->setUsername($settings["username"]);
+            $transport->setPassword(self::decode($settings["password"]));
+            $transport->setAuthMode($settings["authentication_procedure"]);
+        }
+
+        if ($settings["use_encryption"] == "yes") {
+            $transport->setEncryption($settings["encryption_type"]);
+        }
+
+        // if required, set the server timeout (Swift Mailer default == 15 seconds)
+        if (isset($settings["server_connection_timeout"]) && !empty($settings["server_connection_timeout"])) {
+            $transport->setTimeout($settings["server_connection_timeout"]);
+        }
+
+        // Create the Mailer using your created Transport
+        $mailer = new Swift_Mailer($transport);
+
+        // Create a message
+        $message = new Swift_Message($L["phrase_test_multipart_email"]);
+        $message->setFrom($info["from_email"]);
+        $message->setTo($info["recipient_email"]);
+
+        // now send the appropriate email
+        switch ($info["test_email_format"]) {
+            case "text":
+                $message->setSubject($L["phrase_plain_text_email"]);
+                $message->setBody($L["notify_plain_text_email_sent"]);
+                break;
+            case "html":
+                $message->setSubject($L["phrase_html_email"]);
+                $message->setBody($L["notify_html_email_sent"], "text/html");
+                break;
+            case "multipart":
+                $message->setSubject(htmlspecialchars_decode($L["phrase_multipart_email"]));
+                $message->setBody($L["notify_plain_text_email_sent"]);
+                $message->addPart($L["notify_plain_text_email_sent"], "text/html");
+                break;
+        }
+
+        try {
+            if (!$mailer->send($message, $errors)) {
+                return array(false, $L["notify_problem_sending_test_email"] . " " . implode(", ", $errors));
+            }
+        } catch (Swift_TransportException $e) {
+            return array(false, $L["notify_problem_sending_test_email"] . " " . $e->getMessage());
+        }
+
+        return array(true, $L["notify_email_sent"]);
+    }
 
 
     /**
@@ -301,7 +347,6 @@ class Module extends FormToolsModule
 //        $success = true;
 //        $message = "The email was successfully sent.";
 //
-//        // make the SMTP connection (this is PHP-version specific)
 //        $smtp = swift_make_smtp_connection($settings);
 //
 //        // if required, set the server timeout (Swift Mailer default == 15 seconds)
@@ -517,10 +562,34 @@ END;
             WHERE  email_template_id = :email_template_id
         ");
         $db->bindAll(array(
-        "return_path" => $info["info"]["swift_mailer_return_path"],
-        "email_template_id" => $info["email_id"]
+            "return_path" => $info["info"]["swift_mailer_return_path"],
+            "email_template_id" => $info["email_id"]
         ));
         $db->execute();
     }
-}
 
+    private static function encode ($str) {
+        return @openssl_encrypt($str, self::getCipher(), "km");
+    }
+
+    private static function decode ($str) {
+        return @openssl_decrypt($str, self::getCipher(), "km");
+    }
+
+    private static function getCipher () {
+        $ciphers = openssl_get_cipher_methods();
+        $selected_cipher = "";
+        foreach (self::$ciphers as $curr_cipher) {
+            if (in_array($curr_cipher, $ciphers)) {
+                $selected_cipher = $curr_cipher;
+                break;
+            }
+        }
+        // assumption is that at least ONE cipher exists on the users system
+        if (empty($selected_cipher)) {
+            $selected_cipher = $ciphers[0];
+        }
+
+        return $selected_cipher;
+    }
+}
