@@ -19,7 +19,7 @@ class Module extends FormToolsModule
     protected $authorEmail = "ben.keen@gmail.com";
     protected $authorLink = "https://formtools.org";
     protected $version = "2.0.0";
-    protected $date = "2017-10-28";
+    protected $date = "2017-10-29";
     protected $originLanguage = "en_us";
     protected $jsFiles = array(
         "{MODULEROOT}/scripts/field_options.js"
@@ -305,6 +305,7 @@ class Module extends FormToolsModule
         }
 
         // add the return path if it's defined
+
         if (isset($email_components["email_id"])) {
             $db->query("
                 SELECT return_path
@@ -531,9 +532,9 @@ END;
             $email = $item["email"];
 
             if (empty($item["name"])) {
-                $emails[] = array($email);
+                $emails[] = $email;
             } else {
-                $emails[] = array($email => $item["name"]);
+                $emails[$email] = $item["name"];
             }
         }
 
