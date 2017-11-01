@@ -279,6 +279,13 @@ class Module extends FormToolsModule
 
         $settings = $this->getSettings();
 
+        if (!isset($email_components["cc"])) {
+            $email_components["cc"] = array();
+        }
+        if (!isset($email_components["bcc"])) {
+            $email_components["bcc"] = array();
+        }
+
         $mailer = $this->getMailer();
 
         // apply the optional anti-flood settings
@@ -337,7 +344,7 @@ class Module extends FormToolsModule
             $message->setBcc($bcc);
         }
 
-        $reply_to = $email_components["reply_to"];
+        $reply_to = isset($email_components["reply_to"]) ? $email_components["reply_to"] : array();
         if (!empty($reply_to["name"]) && !empty($reply_to["email"])) {
             $message->setReplyTo($reply_to["email"], $reply_to["name"]);
         } else if (!empty($reply_to["email"])) {
