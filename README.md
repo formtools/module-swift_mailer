@@ -1,4 +1,4 @@
-## wift Mailer module
+## Swift Mailer module
 
 The Swift Mailer module, when installed and configured, overrides the default PHP mail() usage and sends all Form Tools emails via the SMTP settings you supply.
 
