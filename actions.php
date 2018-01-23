@@ -1,14 +1,10 @@
 <?php
 
-$folder = dirname(__FILE__);
-require_once("$folder/../../global/session_start.php");
+require_once("../../global/library.php");
 
-$request = array_merge($_GET, $_POST);
-$action  = $request["action"];
+use FormTools\Modules;
 
-switch ($action)
-{
-  case "remember_advanced_settings":
-    ft_load_module_field("swift_mailer", "remember_advanced_settings", "remember_advanced_settings");
-    break;
+$module = Modules::initModulePage("client");
+if ($request["action"] == "remember_advanced_settings") {
+    Modules::loadModuleField("swift_mailer", "remember_advanced_settings", "remember_advanced_settings");
 }

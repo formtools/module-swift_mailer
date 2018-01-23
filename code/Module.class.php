@@ -18,12 +18,9 @@ class Module extends FormToolsModule
     protected $author = "Ben Keen";
     protected $authorEmail = "ben.keen@gmail.com";
     protected $authorLink = "https://formtools.org";
-    protected $version = "2.0.2";
-    protected $date = "2017-11-07";
+    protected $version = "2.0.3";
+    protected $date = "2018-02-05";
     protected $originLanguage = "en_us";
-    protected $jsFiles = array(
-        "{MODULEROOT}/scripts/field_options.js"
-    );
 
     protected $nav = array(
         "module_name" => array("index.php", false),
@@ -83,8 +80,6 @@ class Module extends FormToolsModule
         ";
 
         try {
-            $db->beginTransaction();
-
             foreach ($settings as $row) {
                 $db->query($settings_query);
                 $db->bind("setting_name", $row[0]);
@@ -100,16 +95,13 @@ class Module extends FormToolsModule
             )");
             $db->execute();
 
-            Hooks::registerHook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
-            Hooks::registerHook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");
-            Hooks::registerHook("code", "swift_mailer", "end", "ft_delete_email_template", "swift_delete_email_template_field");
-            Hooks::registerHook("code", "swift_mailer", "end", "ft_update_email_template", "swift_update_email_template_append_extra_fields");
-            Hooks::registerHook("code", "swift_mailer", "end", "ft_get_email_template", "swift_get_email_template_append_extra_fields");
+            $this->resetHooks();
 
             // now map all the email template IDs for the extra return path field
             $db->query("SELECT email_id FROM {PREFIX}email_templates");
             $db->execute();
             $email_template_ids = $db->fetchAll(PDO::FETCH_COLUMN);
+
             foreach ($email_template_ids as $email_template_id) {
                 $db->query("
                     INSERT INTO {PREFIX}module_swift_mailer_email_template_fields (email_template_id, return_path)
@@ -118,10 +110,7 @@ class Module extends FormToolsModule
                 $db->bind("email_template_id", $email_template_id);
                 $db->execute();
             }
-            $db->processTransaction();
-
         } catch (PDOException $e) {
-            $db->rollbackTransaction();
             return array(false, $e->getMessage());
         }
 
@@ -140,9 +129,30 @@ class Module extends FormToolsModule
         $db = Core::$db;
 
         $db->query("DROP TABLE {PREFIX}module_swift_mailer_email_template_fields");
+        $db->execute();
+
         $db->query("DELETE FROM {PREFIX}settings WHERE module = 'swift_mailer'");
+        $db->execute();
 
         return array(true, "");
+    }
+
+
+    public function upgrade($module_id, $old_module_version)
+    {
+        $this->resetHooks();
+    }
+
+
+    public function resetHooks()
+    {
+        $this->clearHooks();
+
+        Hooks::registerHook("template", "swift_mailer", "edit_template_tab2", "", "swift_display_extra_fields_tab2");
+        Hooks::registerHook("code", "swift_mailer", "end", "ft_create_blank_email_template", "swift_map_email_template_field");
+        Hooks::registerHook("code", "swift_mailer", "end", "ft_delete_email_template", "swift_delete_email_template_field");
+        Hooks::registerHook("code", "swift_mailer", "end", "ft_update_email_template", "swift_update_email_template_append_extra_fields");
+        Hooks::registerHook("code", "swift_mailer", "end", "ft_get_email_template", "swift_get_email_template_append_extra_fields");
     }
 
 
