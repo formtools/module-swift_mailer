@@ -18,8 +18,8 @@ class Module extends FormToolsModule
     protected $author = "Ben Keen";
     protected $authorEmail = "ben.keen@gmail.com";
     protected $authorLink = "https://formtools.org";
-    protected $version = "2.0.4";
-    protected $date = "2018-02-05";
+    protected $version = "2.0.5";
+    protected $date = "2018-03-18";
     protected $originLanguage = "en_us";
 
     protected $nav = array(
@@ -310,9 +310,9 @@ class Module extends FormToolsModule
         }
 
         $message = new Swift_Message();
+        $message->setSubject($email_components["subject"]);
 
         if (!empty($email_components["text_content"]) && !empty($email_components["html_content"])) {
-            $message->setSubject($email_components["subject"]);
             $message->setBody($email_components["text_content"]);
             $message->addPart($email_components["html_content"], "text/html");
         } else if (!empty($email_components["text_content"])) {
