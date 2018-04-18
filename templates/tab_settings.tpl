@@ -54,6 +54,9 @@
             {/if}
             <input type="password" name="password" id="password" style="width:200px" value=""
             {if $sm_settings.requires_authentication == "no"}disabled{/if} />
+            {if $sm_settings.password}
+                <div class="medium_grey">{$L.text_password_hidden}</div>
+            {/if}
         </td>
     </tr>
     <tr>

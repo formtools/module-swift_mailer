@@ -60,6 +60,7 @@ $L["notify_problem_building_email"] = "There was an unexpected problem building 
 $L["text_help"] = "Please see our <a href=\"https://docs.formtools.org/modules/swift_mailer/\" target=\"_blank\">online help documentation</a> for information on how to use this module.";
 $L["text_settings_desc"] = "This module enables the <a href=\"http://swiftmailer.org/\" target=\"_blank\">Swift Mailer</a> script to send all Form Tools emails, instead of relying on the default PHP <b>mail()</b> function. Your PHP version is <b>{\$php_version}</b>.";
 $L["text_test_desc"] = "Use the form below to confirm the emails are sent with the SMTP settings you have entered.";
+$L["text_password_hidden"] = "Password hidden for security reasons. You only need to re-enter the password here if you wish to change it.";
 
 $L["validation_no_recipient_email"] = "Please enter the recipient email address.";
 $L["validation_no_sender_email"] = "Please enter the email address of the sender.";
