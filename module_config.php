@@ -68,7 +68,6 @@ $FILES = array(
     "index.php",
     "lang/en_us.php",
     "library.php",
-    "module.php",
     "module_config.php",
     "tab_settings.php",
     "tab_test.php",
